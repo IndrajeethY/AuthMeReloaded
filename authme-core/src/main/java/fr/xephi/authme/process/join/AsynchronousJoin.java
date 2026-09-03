@@ -159,7 +159,7 @@ public class AsynchronousJoin implements AsynchronousProcess {
             preJoinDialogService.consumePendingRegistration(playerId);
         boolean shouldSkipPostJoinDialog = preJoinDialogService.consumeSkipPostJoinDialog(playerId);
         boolean pendingForceLogin = preJoinDialogService.consumePendingForceLogin(playerId);
-        String pendingKick = preJoinDialogService.consumePendingKickMessage(playerId);
+        String pendingKick = preJoinDialogService.consumePendingKickMessage(playerId, ip);
         // pendingKick is applied below, after proxy/premium/session checks, which take priority:
         // a Velocity perform.login arriving just after the player cancelled the pre-join dialog
         // must win over the dialog cancel kick.

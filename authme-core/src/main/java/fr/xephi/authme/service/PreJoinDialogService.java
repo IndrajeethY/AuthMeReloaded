@@ -15,7 +15,7 @@ public class PreJoinDialogService {
     private final Map<UUID, String> pendingRecoveryEmails = new ConcurrentHashMap<>();
     private final Map<UUID, PendingRegistration> pendingRegistrations = new ConcurrentHashMap<>();
     private final Set<UUID> skipPostJoinDialogs = ConcurrentHashMap.newKeySet();
-    private final Map<UUID, String> pendingKickMessages = new ConcurrentHashMap<>();
+    private final Map<String, String> pendingKickMessages = new ConcurrentHashMap<>();
 
     // Pre-join force-login: tracks players blocked in the pre-join login dialog so that
     // ForceLoginCommand can unblock them without requiring the player to be in PLAY state.
@@ -62,12 +62,12 @@ public class PreJoinDialogService {
         return skipPostJoinDialogs.remove(playerId);
     }
 
-    public void storePendingKickMessage(UUID playerId, String message) {
-        pendingKickMessages.put(playerId, message);
+    public void storePendingKickMessage(UUID playerId, String ip, String message) {
+        pendingKickMessages.put(playerId + ":" + ip, message);
     }
 
-    public String consumePendingKickMessage(UUID playerId) {
-        return pendingKickMessages.remove(playerId);
+    public String consumePendingKickMessage(UUID playerId, String ip) {
+        return pendingKickMessages.remove(playerId + ":" + ip);
     }
 
     /**
@@ -132,7 +132,8 @@ public class PreJoinDialogService {
         pendingRegistrations.remove(playerId);
         skipPostJoinDialogs.remove(playerId);
         pendingForceLogins.remove(playerId);
-        pendingKickMessages.remove(playerId);
+        String prefix = playerId + ":";
+        pendingKickMessages.keySet().removeIf(k -> k.startsWith(prefix));
         unregisterPreJoinFuture(playerId);
     }
 

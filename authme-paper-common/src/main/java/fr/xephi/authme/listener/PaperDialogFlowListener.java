@@ -237,7 +237,9 @@ public class PaperDialogFlowListener implements Listener {
         preJoinDialogService.unregisterPreJoinFuture(playerId);
 
         if (kickMessage != null) {
-            preJoinDialogService.storePendingKickMessage(playerId, kickMessage);
+            InetSocketAddress addr = connection.getClientAddress();
+            String ip = addr == null ? "unknown" : addr.getAddress().getHostAddress();
+            preJoinDialogService.storePendingKickMessage(playerId, ip, kickMessage);
         }
         connection.getAudience().closeDialog();
     }
@@ -292,7 +294,9 @@ public class PaperDialogFlowListener implements Listener {
         pendingRegisterResponses.remove(connection);
 
         if (kickMessage != null) {
-            preJoinDialogService.storePendingKickMessage(playerId, kickMessage);
+            InetSocketAddress addr = connection.getClientAddress();
+            String ip = addr == null ? "unknown" : addr.getAddress().getHostAddress();
+            preJoinDialogService.storePendingKickMessage(playerId, ip, kickMessage);
         }
         connection.getAudience().closeDialog();
     }
@@ -487,10 +491,7 @@ public class PaperDialogFlowListener implements Listener {
     }
 
     private static UUID safeGetId(PlayerConfigurationConnection conn) {
-        try {
-            return conn.getProfile().getId();
-        } catch (Exception e) {
-            return null;
-        }
+        PlayerProfile profile = conn.getProfile();
+        return profile == null ? null : profile.getId();
     }
 }
