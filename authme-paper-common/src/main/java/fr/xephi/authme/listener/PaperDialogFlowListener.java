@@ -24,6 +24,7 @@ import fr.xephi.authme.service.ValidationService;
 import fr.xephi.authme.settings.properties.PremiumSettings;
 import fr.xephi.authme.settings.properties.RegistrationSettings;
 import fr.xephi.authme.settings.properties.RestrictionSettings;
+import fr.xephi.authme.settings.properties.SecuritySettings;
 import fr.xephi.authme.util.InternetProtocolUtils;
 import io.papermc.paper.connection.PlayerConfigurationConnection;
 import io.papermc.paper.dialog.Dialog;
@@ -54,6 +55,7 @@ public class PaperDialogFlowListener implements Listener {
 
     private final ConcurrentMap<PlayerConfigurationConnection, CompletableFuture<String>> pendingLoginResponses = new ConcurrentHashMap<>();
     private final ConcurrentMap<PlayerConfigurationConnection, CompletableFuture<String>> pendingRegisterResponses = new ConcurrentHashMap<>();
+    private final ConcurrentMap<PlayerConfigurationConnection, Integer> loginAttemptCounts = new ConcurrentHashMap<>();
 
     @Inject
     private CommonService commonService;
@@ -205,6 +207,7 @@ public class PaperDialogFlowListener implements Listener {
             }
             return false;
         });
+        loginAttemptCounts.keySet().removeIf(conn -> playerId.equals(safeGetId(conn)));
         preJoinDialogService.clear(playerId);
     }
 
@@ -259,10 +262,22 @@ public class PaperDialogFlowListener implements Listener {
         }
 
         if (passwordSecurity.comparePassword(password, auth.getPassword(), playerName)) {
+            loginAttemptCounts.remove(connection);
             preJoinDialogService.storePendingLoginPassword(playerId, password);
             completeLoginResponse(connection, null);
         } else {
-            completeLoginResponse(connection, messages.retrieveSingle(playerName, MessageKey.WRONG_PASSWORD));
+            int attempts = loginAttemptCounts.merge(connection, 1, Integer::sum);
+            boolean kickOnWrong = commonService.getProperty(RestrictionSettings.KICK_ON_WRONG_PASSWORD);
+            int maxAttempts = kickOnWrong ? 1 : commonService.getProperty(SecuritySettings.MAX_LOGIN_TRIES_BEFORE_CAPTCHA);
+            if (maxAttempts > 0 && attempts >= maxAttempts) {
+                loginAttemptCounts.remove(connection);
+                completeLoginResponse(connection, messages.retrieveSingle(playerName, MessageKey.WRONG_PASSWORD));
+            } else {
+                String errorMsg = messages.retrieveSingle(playerName, MessageKey.WRONG_PASSWORD);
+                DialogWindowSpec spec = dialogWindowService.createPreJoinLoginDialog(playerName);
+                connection.getAudience().showDialog(
+                    PaperDialogHelper.createPreJoinLoginDialog(spec.withBody(errorMsg)));
+            }
         }
     }
 
